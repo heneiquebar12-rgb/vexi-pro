@@ -5,22 +5,11 @@ import json
 import time
 import pandas as pd
 import base64 # Importação necessária para codificar a imagem
-from supabase import create_client, Client # <-- ADICIONADO PARA CONEXÃO COM A NUVEM
 
 # Configuração da página
-st.set_page_config(page_title="ミ★ ░V░E░X░I░ ★彡  ", layout="wide")
+st.set_page_config(page_title="ミ ░V░E░X░I░ 彡  ", layout="wide")
 
-# --- CONEXÃO COM O BANCO DE DADOS NA NUVEM (ADICIONADO) ---
-SUPABASE_URL = "https://pbmdxjmbheezfyekjfno.supabase.co"
-SUPABASE_KEY = "sb_publishable_OYnmIG8pxGZiNfv82fgVBg_9-u4WhZV"
-
-@st.cache_resource
-def init_supabase():
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
-
-supabase = init_supabase()
-
-# Função para codificar a imagem local em base64 (necessário para o Streamlit)
+# Função para codificar a imagem local in base64 (necessário para o Streamlit)
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -38,6 +27,7 @@ try:
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed; /* Opcional: mantém o fundo fixo ao rolar */
+        background-position: center;
         color: white; /* Mantém a cor do texto padrão */
     }}
     </style>
@@ -65,25 +55,30 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         text-align: center;
+        width: 100%;
     }
    
     .vexi-title {
-        font-size: 70px !important;
+        font-size: clamp(32px, 7vw, 70px) !important;
         font-weight: bold;
         margin-bottom: 20px;
         color: white;
         text-shadow: 0px 0px 15px rgba(255,255,255,0.2);
+        text-align: center;
+        width: 100%;
     }
 
     div[data-baseweb="input"] {
-        width: 350px !important;
+        max-width: 350px !important;
+        width: 100% !important;
         margin: 0 auto !important;
     }
    
     div.stButton > button {
         display: block;
         margin: 20px auto;
-        width: 200px;
+        max-width: 200px;
+        width: 100%;
     }
 
     div[data-testid="stFormElement"] label {
@@ -91,11 +86,11 @@ st.markdown("""
     }
 
     button[data-baseweb="tab"] {
-        font-size: 20px !important;
+        font-size: clamp(12px, 3.5vw, 20px) !important;
         border: 2px solid #30363d !important;
         border-radius: 50px !important;
-        padding: 10px 25px !important;
-        margin: 5px !important;
+        padding: 8px 16px !important;
+        margin: 3px !important;
         background-color: transparent !important;
     }
 
@@ -103,6 +98,40 @@ st.markdown("""
         background-color: #58a6ff !important;
         color: white !important;
         border-color: #58a6ff !important;
+    }
+
+    /* REGRAS DE AUTOMODULAÇÃO E RESPONSIVIDADE PARA O CELULAR */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: column !important;
+            gap: 15px !important;
+        }
+        div[data-testid="column"] {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+        }
+        /* Ajusta o container interno de sinal para não vazar a borda */
+        div[style*="padding: 30px"] {
+            padding: 15px !important;
+        }
+        /* Alinha os blocos de grade em modo lista no mobile */
+        div[style*="display: grid"] {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+        }
+        /* Alinha os flexboxes do sinal em modo lista no mobile */
+        div[style*="display: flex"] {
+            flex-direction: column !important;
+            gap: 15px !important;
+            text-align: center !important;
+        }
+        div[style*="text-align: right"] {
+            text-align: center !important;
+        }
+        h1[style*="font-size: 55px"] {
+            font-size: 40px !important;
+            text-align: center !important;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -121,7 +150,7 @@ if not st.session_state['auth']:
     login_placeholder = st.empty()
     with login_placeholder.container():
         st.write("<br><br><br><br><br>", unsafe_allow_html=True)
-        st.markdown('<div class="login-container"><h1 class="vexi-title">ミ★ ░V░E░X░I░ ★彡</h1></div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-container"><h1 class="vexi-title">ミ ░V░E░X░I░ 彡</h1></div>', unsafe_allow_html=True)
        
         _, col_mid, _ = st.columns([1, 1, 1])
         with col_mid:
@@ -135,43 +164,20 @@ if not st.session_state['auth']:
                     st.error("Chave incorreta.")
         st.stop()
 
-st.markdown('<div class="login-container"><h1 class="vexi-title">ミ★ ░V░E░X░I░ ★彡</h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="login-container"><h1 class="vexi-title">ミ ░V░E░X░I░ 彡</h1></div>', unsafe_allow_html=True)
 
 tab_sinal, tab_calculadora, tab_historico, tab_graficos, tab_mapa, tab_noticias = st.tabs([
     "🔔 SINAL AO VIVO", "📊 CALCULADORA DE RISCO", "📜 HISTÓRICO", "📈 ANÁLISE TÉCNICA", "🔥 HEATMAP", "📰 NOTÍCIAS"
 ])
 
-# --- LEITURA GLOBAL DA NUVEM (ADICIONADO PARA SUBSTITUIR ARQUIVO LOCAL) ---
+# Carregamento de dados global para sincronizar abas
 dados_robo = {}
-dados_h = []
-
-try:
-    # Puxa o último sinal e o histórico direto do Supabase
-    response = supabase.table("sinais_vexi").select("*").order("id", desc=True).limit(15).execute()
-    if response.data:
-        # Formata o sinal atual igual ao seu dicionário original esperado
-        ultimo = response.data[0]
-        dados_robo = {
-            "Hora": ultimo["hora"],
-            "Ativo": ultimo["ativo"],
-            "Tipo": ultimo["tipo"],
-            "Preco": ultimo["preco"],
-            "TP": ultimo["tp"],
-            "SL": ultimo["sl"],
-            "Prob": ultimo["prob"],
-            "RR": ultimo["rr"],
-            "Padrao": ultimo["padrao"]
-        }
-        
-        # Reconstrói a lista do histórico no formato das suas colunas originais
-        for item in response.data:
-            dados_h.append({
-                "Hora": item["hora"], "Ativo": item["ativo"], "Tipo": item["tipo"],
-                "Preco": item["preco"], "TP": item["tp"], "SL": item["sl"],
-                "Prob": item["prob"], "RR": item["rr"], "Padrao": item["padrao"]
-            })
-except Exception as e:
-    pass
+if os.path.exists('dados_vortex.json'):
+    try:
+        with open('dados_vortex.json', 'r') as f:
+            dados_robo = json.load(f)
+    except:
+        pass
 
 with tab_sinal:
     sinal_container = st.empty()
@@ -271,7 +277,7 @@ with tab_calculadora:
             tamanho_contract = contratos.get(tipo_mercado, 1)
            
             # FÓRMULA CORRIGIDA: Lote = Risco Financeiro / (Distância do Stop * Tamanho do Contrato)
-            lote_sugerido = valor_risco / (distancia_sl * taxation_contract if 'taxation_contract' in locals() else distancia_sl * tamanho_contract)
+            lote_sugerido = valor_risco / (distancia_sl * tamanho_contract)
            
             st.markdown(f"""
             <div class="metric-card" style="border-top: 3px solid #00ff00; margin-bottom: 20px;">
@@ -289,11 +295,14 @@ with tab_calculadora:
 
 with tab_historico:
     st.subheader("📜 ÚLTIMAS OPERAÇÕES VEXI")
-    if dados_h:
+    if os.path.exists('historico_vortex.json'):
         try:
-            df_hist = pd.DataFrame(dados_h)
-            cols_visiveis = [c for c in df_hist.columns if c not in ['range', 'ema5', 'ema20', 'macd', 'signal_line']]
-            st.dataframe(df_hist[cols_visiveis], use_container_width=True, hide_index=True)
+            with open('historico_vortex.json', 'r') as f:
+                dados_h = json.load(f)
+            if dados_h:
+                df_hist = pd.DataFrame(dados_h)
+                cols_visiveis = [c for c in df_hist.columns if c not in ['range', 'ema5', 'ema20', 'macd', 'signal_line']]
+                st.dataframe(df_hist[cols_visiveis], use_container_width=True, hide_index=True)
         except:
             st.write("Atualizando...")
 
